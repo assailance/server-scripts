@@ -2,11 +2,11 @@
 
 ## 📃 Описание
 
-### `configure-iptables.sh`
+### `configure-iptables.sh` / [Перейти](#настройка-iptables-configure-iptablessh)
 
 Настраивает файлы `rules.v4`, `rules.v6` и `ipsets.conf` в соответствии с указанными параметрами. Использует `iptables-persistent` для загрузки правил `iptables` и сервис `ipset-restore.service` для наборов `ipset`.
 
-### `configure-user.sh`
+### `configure-user.sh` / [Перейти](#настройка-пользователя-и-ssh-configure-usersh)
 
 Создаёт непривилегированного пользователя, настраивает SSH-авторизацию по ключу, изменяет порт и другие параметры в `/etc/ssh/sshd_config` для повышения безопасности сервера.
 
@@ -110,6 +110,8 @@ sudo ./configure-iptables.sh --allow-ipv6 --allow-icmpv6
 ./configure-iptables.sh --help
 ```
 
+---
+
 # Настройка пользователя и SSH (`configure-user.sh`)
 
 Описание действий:
@@ -120,3 +122,56 @@ sudo ./configure-iptables.sh --allow-ipv6 --allow-icmpv6
 4. Настройка маски для новых файлов (umask) и добавление SSH-ключа.
 5. Отключение root shell (смена на `/usr/sbin/nologin`).
 6. Настройка порта и других опций в `/etc/ssh/sshd_config` на основе переданных параметров.
+
+## Запуск
+
+### Напрямую с GitHub
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-user.sh | sudo bash -- <имя_пользователя> <публичный_ключ> <порт_ssh>
+```
+
+### Локальная загрузка и запуск
+ 
+```bash
+wget -O configure-user.sh https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-user.sh
+chmod +x configure-user.sh
+sudo ./configure-user.sh <имя_пользователя> <публичный_ключ> <порт_ssh>
+```
+
+---
+ 
+## Параметры
+ 
+Скрипт принимает ровно три обязательных позиционных параметра.
+ 
+### `<имя_пользователя>`
+ 
+Имя создаваемого пользователя. Если пользователь уже существует, шаг создания пропускается.
+ 
+```bash
+sudo ./configure-user.sh myuser <публичный_ключ> <порт_ssh>
+```
+
+---
+ 
+### `<публичный_ключ>`
+ 
+Публичный SSH-ключ, который будет добавлен в `~/.ssh/authorized_keys` пользователя. Поддерживаемые типы: `ssh-ed25519`, `ssh-rsa`, `ecdsa-sha2-nistp256`. Ключ нужно передавать в кавычках.
+ 
+```bash
+sudo ./configure-user.sh <имя_пользователя> 'ssh-ed25519 AAAA...xyz user@host' <порт_ssh>
+```
+ 
+---
+
+### `<порт_ssh>`
+ 
+Новый порт, на котором будет слушать SSH-сервер. Должен быть числом в диапазоне от 1 до 65535 и не занятым другим процессом.
+ 
+> [!WARNING]
+> После выполнения скрипта SSH будет доступен только на указанном порту. Не закрывайте текущую сессию, не проверив подключение в новом терминале.
+ 
+```bash
+sudo ./configure-user.sh <имя_пользователя> <публичный_ключ> 8132
+```

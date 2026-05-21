@@ -2,11 +2,11 @@ Automate **initial server setup** using **bash scripts**.
 
 ## 📃 Description
 
-### `configure-iptables.sh`
+### `configure-iptables.sh` / [Go](#configuring-iptables-configure-iptablessh)
 
-Configures the `rules.v4`, `rules.v6`, and `ipsets.conf` files according to the specified parameters (uses `iptables-persistent` to load `iptables` rules and `ipset-restore.service` to set `ipsets`);
+Configures the `rules.v4`, `rules.v6`, and `ipsets.conf` files according to the specified parameters (uses `iptables-persistent` to load `iptables` rules and `ipset-restore.service` to `ipset` sets);
 
-### `configure-user.sh`
+### `configure-user.sh` / [Go](#configuring-the-user-and-ssh-configure-usersh)
 
 Creates a nonroot user, configures SSH key authentication, changes the port and other settings in `/etc/ssh/sshd_config` to improve server security.
 
@@ -122,3 +122,56 @@ Description of actions:
 4. Configure the mask for new files (umask) and add an SSH key.
 5. Disable the root shell (change to `/usr/sbin/nologin`).
 6. Configure the port and other options in `/etc/ssh/sshd_config` based on the passed parameters.
+
+## Usage
+
+### Run directly from GitHub
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-user.sh | sudo bash -- <username> <public_key> <ssh_port>
+```
+
+### Download and run locally
+ 
+```bash
+wget -O configure-user.sh https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-user.sh
+chmod +x configure-user.sh
+sudo ./configure-user.sh <username> <public_key> <ssh_port>
+```
+
+---
+
+## Parameters
+
+The script accepts exactly three mandatory positional parameters, in the order listed below.
+
+### `<username>`
+
+The name of the user to create. If the user already exists, the creation step is skipped.
+
+```bash
+sudo ./configure-user.sh myuser <public_key> <ssh_port>
+```
+
+---
+
+### `<public_key>`
+
+The SSH public key to add to the user's `~/.ssh/authorized_keys`. Supported key types: `ssh-ed25519`, `ssh-rsa`, `ecdsa-sha2-nistp256`. The key must be passed in quotes.
+
+```bash
+sudo ./configure-user.sh <username> 'ssh-ed25519 AAAA...xyz user@host' <ssh_port>
+```
+
+---
+
+### `<ssh_port>`
+
+The new port on which the SSH server will listen. Must be a number between 1 and 65535 and must not already be in use by another process.
+
+> [!WARNING]
+> Once the script completes, SSH will only be accessible on the specified port. Do not close the current session without verifying the connection in a new terminal first.
+
+```bash
+sudo ./configure-user.sh <username> <public_key> 8132
+```

@@ -26,14 +26,14 @@ Description of actions:
 ### Run directly from GitHub
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-iptables.sh | sudo bash -- [options]
+curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-iptables.sh | sudo bash -s -- [options]
 ```
 
 Example with arguments:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-iptables.sh \
-  | sudo bash -- --allow-icmp --allow-ports 80,443 --allow-ipv6
+  | sudo bash -s -- --allow-icmp --allow-ports 80,443 --allow-ipv6
 ```
 
 ### Download and run locally
@@ -128,7 +128,7 @@ Description of actions:
 ### Run directly from GitHub
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-user.sh | sudo bash -- <username> <public_key> <ssh_port>
+curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-user.sh | sudo bash -s -- <username> <public_key> <ssh_port>
 ```
 
 ### Download and run locally

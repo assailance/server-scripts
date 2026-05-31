@@ -26,13 +26,13 @@
 ### Напрямую с GitHub
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-iptables.sh | sudo bash -- [опции]
+curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-iptables.sh | sudo bash -s -- [опции]
 ```
 
 Пример с аргументами:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-iptables.sh \
-  | sudo bash -- --allow-icmp --allow-ports 80,443 --allow-ipv6
+  | sudo bash -s -- --allow-icmp --allow-ports 80,443 --allow-ipv6
 ```
 
 ### Локальная загрузка и запуск
@@ -128,7 +128,7 @@ sudo ./configure-iptables.sh --allow-ipv6 --allow-icmpv6
 ### Напрямую с GitHub
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-user.sh | sudo bash -- <имя_пользователя> <публичный_ключ> <порт_ssh>
+curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-user.sh | sudo bash -s -- <имя_пользователя> <публичный_ключ> <порт_ssh>
 ```
 
 ### Локальная загрузка и запуск

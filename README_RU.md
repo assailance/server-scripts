@@ -2,24 +2,37 @@
 
 ## 📃 Описание
 
-### `configure-iptables.sh` / [Перейти](#настройка-iptables-configure-iptablessh)
+### configure-iptables.sh / [Перейти](#настройка-iptables-configure-iptablessh)
 
-Настраивает файлы `rules.v4`, `rules.v6` и `ipsets.conf` в соответствии с указанными параметрами. Использует `iptables-persistent` для загрузки правил `iptables` и сервис `ipset-restore.service` для наборов `ipset`.
+Настраивает файлы `rules.v4`, `rules.v6` и `ipsets.conf` в соответствии с указанными параметрами. Использует iptables-persistent для загрузки правил iptables и сервис `ipset-restore.service` для наборов ipset.
 
-### `configure-user.sh` / [Перейти](#настройка-пользователя-и-ssh-configure-usersh)
+### configure-user.sh / [Перейти](#настройка-пользователя-и-ssh-configure-usersh)
 
 Создаёт непривилегированного пользователя, настраивает SSH-авторизацию по ключу, изменяет порт и другие параметры в `/etc/ssh/sshd_config` для повышения безопасности сервера.
 
-# Настройка `iptables` (`configure-iptables.sh`)
+### configure-nftables.sh / [Перейти](#настройка-nftables-configure-nftablessh)
+
+Настраивает ruleset для nftables с автоматическим определением SSH-порта, ограничением частоты запросов по IP, автобаном, защитой от сканирования, фильтрацией bogon-адресов и внешними блок-листами. Генерирует файл `/etc/nftables.d/cm_filter.nft`, проверяет его перед применением и настраивает автозагрузку через systemd.
+
+<!-- ========================================== -->
+<!-- ====  Docs for configure-iptables.sh  ==== -->
+<!-- ========================================== -->
+
+<details>
+<summary>
+
+# Настройка iptables (configure-iptables.sh)
+
+</summary>
 
 Описание действий:
 
 1. Обновление и установка следующих пакетов: iptables, ipset, iptables-persistent, curl.
-2. Загрузка и настройка наборов для `ipset` из репозитория [traffic-guard-lists](https://github.com/shadow-netlab/traffic-guard-lists).
+2. Загрузка и настройка наборов для ipset из репозитория [traffic-guard-lists](https://github.com/shadow-netlab/traffic-guard-lists).
 3. Генерация файлов `rules.v4` и `rules.v6` на основе переданных параметров (см. ниже).
-4. Применение правил `iptables` из созданных файлов.
-5. Настройка автозагрузки `ipset` через `systemd` (сервис `ipset-restore.service`).
-6. Перезапуск `docker` (если установлен).
+4. Применение правил iptables из созданных файлов.
+5. Настройка автозагрузки ipset через systemd (сервис `ipset-restore.service`).
+6. Перезапуск docker (если установлен).
 
 ## Запуск
 
@@ -30,12 +43,14 @@ curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/head
 ```
 
 Пример с аргументами:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-iptables.sh \
   | sudo bash -s -- --allow-icmp --allow-ports 80,443 --allow-ipv6
 ```
 
 ### Локальная загрузка и запуск
+
 ```bash
 wget -O configure-iptables.sh https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-iptables.sh
 chmod +x configure-iptables.sh
@@ -61,8 +76,7 @@ sudo ./configure-iptables.sh --allow-icmp
 
 Открывает дополнительные входящие TCP-порты. Порты указываются через запятую. Правила применяются одновременно для IPv4 и IPv6 (если IPv6 включён флагом --allow-ipv6).
 
-> [!WARNING]
-> SSH-порт открывается автоматически — указывать его здесь не нужно. Скрипт определяет порт из конфигурации `sshd` (по умолчанию 22).
+> ⚠️ SSH-порт открывается автоматически — указывать его здесь не нужно. Скрипт определяет порт из конфигурации sshd (по умолчанию 22).
 
 ```bash
 sudo ./configure-iptables.sh --allow-ports 80,443,8080
@@ -110,9 +124,18 @@ sudo ./configure-iptables.sh --allow-ipv6 --allow-icmpv6
 ./configure-iptables.sh --help
 ```
 
----
+</details>
 
-# Настройка пользователя и SSH (`configure-user.sh`)
+<!-- ====================================== -->
+<!-- ====  Docs for configure-user.sh  ==== -->
+<!-- ====================================== -->
+
+<details>
+<summary>
+
+# Настройка пользователя и SSH (configure-user.sh)
+
+</summary>
 
 Описание действий:
 
@@ -132,7 +155,7 @@ curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/head
 ```
 
 ### Локальная загрузка и запуск
- 
+
 ```bash
 wget -O configure-user.sh https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-user.sh
 chmod +x configure-user.sh
@@ -140,38 +163,265 @@ sudo ./configure-user.sh <имя_пользователя> <публичный_�
 ```
 
 ---
- 
+
 ## Параметры
- 
+
 Скрипт принимает ровно три обязательных позиционных параметра.
- 
+
 ### `<имя_пользователя>`
- 
+
 Имя создаваемого пользователя. Если пользователь уже существует, шаг создания пропускается.
- 
+
 ```bash
 sudo ./configure-user.sh myuser <публичный_ключ> <порт_ssh>
 ```
 
 ---
- 
+
 ### `<публичный_ключ>`
- 
+
 Публичный SSH-ключ, который будет добавлен в `~/.ssh/authorized_keys` пользователя. Поддерживаемые типы: `ssh-ed25519`, `ssh-rsa`, `ecdsa-sha2-nistp256`. Ключ нужно передавать в кавычках.
- 
+
 ```bash
 sudo ./configure-user.sh <имя_пользователя> 'ssh-ed25519 AAAA...xyz user@host' <порт_ssh>
 ```
- 
+
 ---
 
 ### `<порт_ssh>`
- 
+
 Новый порт, на котором будет слушать SSH-сервер. Должен быть числом в диапазоне от 1 до 65535 и не занятым другим процессом.
- 
-> [!WARNING]
-> После выполнения скрипта SSH будет доступен только на указанном порту. Не закрывайте текущую сессию, не проверив подключение в новом терминале.
- 
+
+> ⚠️ После выполнения скрипта SSH будет доступен только на указанном порту. Не закрывайте текущую сессию, не проверив подключение в новом терминале.
+
 ```bash
 sudo ./configure-user.sh <имя_пользователя> <публичный_ключ> 8132
 ```
+
+</details>
+
+<!-- ========================================== -->
+<!-- ====  Docs for configure-nftables.sh  ==== -->
+<!-- ========================================== -->
+
+<details>
+<summary>
+
+# Настройка nftables (configure-nftables.sh)
+
+</summary>
+
+Описание выполняемых действий:
+
+1. Обновляет и устанавливает пакеты: nftables, curl, ca-certificates, iproute2.
+2. Определяет SSH-порт из текущей конфигурации sshd.
+3. Определяет WAN-интерфейс (используется для bogon-фильтра).
+4. Загружает и подключает блок-листы из репозитория [traffic-guard-lists](https://github.com/shadow-netlab/traffic-guard-lists) (если они не отключены).
+5. Генерирует ruleset nftables на основе переданных параметров (см. ниже).
+6. Проверяет корректность сгенерированного ruleset с помощью `nft -c`.
+7. Применяет сгенерированные правила.
+8. Настраивает автозагрузку через systemd (`cm-filter.service`).
+
+## Использование
+
+### Запуск напрямую из GitHub
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-nftables.sh | sudo bash -s -- [параметры]
+```
+
+Пример запуска с параметрами:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-nftables.sh \
+| sudo bash -s -- --allow-ports 80,443 --allow-udp-ports 51820
+```
+
+### Загрузка и локальный запуск
+
+```bash
+wget -O configure-nftables.sh https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-nftables.sh
+chmod +x configure-nftables.sh
+sudo ./configure-nftables.sh [параметры]
+```
+
+---
+
+## Параметры
+
+### `--disable-ipv6`
+
+Полностью отключает IPv6-трафик.
+
+```bash
+sudo ./configure-nftables.sh --disable-ipv6
+```
+
+---
+
+### `--disable-icmp`
+
+Запрещает входящие ICMP echo-request (ping) для IPv4.
+
+```bash
+sudo ./configure-nftables.sh --disable-icmp
+```
+
+---
+
+### `--disable-icmpv6`
+
+Запрещает входящие ICMPv6 echo-request (ping6).
+Трафик NDP и MLD остаётся разрешённым, поскольку необходим для работы IPv6.
+
+```bash
+sudo ./configure-nftables.sh --disable-icmpv6
+```
+
+---
+
+### `--allow-ports`
+
+Открывает дополнительные входящие TCP-порты.
+Порты указываются через запятую.
+
+> ⚠️ SSH-порт определяется и открывается автоматически, указывать его вручную не требуется.
+
+```bash
+sudo ./configure-nftables.sh --allow-ports 80,443,8080
+```
+
+---
+
+### `--allow-udp-ports`
+
+Открывает дополнительные входящие UDP-порты.
+Порты указываются через запятую.
+
+```bash
+sudo ./configure-nftables.sh --allow-udp-ports 53,51820
+```
+
+---
+
+### `--allow-port-from`
+
+Разрешает доступ к определённым TCP-портам только с указанных адресов.
+Для IPv4 используется формат `IP:PORT`, для IPv6 — `[ADDR]:PORT`. Несколько записей перечисляются через запятую.
+
+```bash
+sudo ./configure-nftables.sh --allow-port-from 1.2.3.4:443,[2001:db8::1]:8080
+```
+
+---
+
+### `--disable-ssh-protection`
+
+Отключает ограничение частоты новых SSH-подключений и механизм автобана.
+
+```bash
+sudo ./configure-nftables.sh --disable-ssh-protection
+```
+
+---
+
+### `--disable-syn-protection`
+
+Отключает ограничение частоты SYN-пакетов на портах, открытых через `--allow-ports`.
+
+```bash
+sudo ./configure-nftables.sh --disable-syn-protection
+```
+
+---
+
+### `--disable-udp-protection`
+
+Отключает ограничение частоты UDP-пакетов на портах, открытых через `--allow-udp-ports`.
+
+```bash
+sudo ./configure-nftables.sh --disable-udp-protection
+```
+
+---
+
+### `--conn-limit`
+
+Ограничивает количество одновременных TCP-соединений с одного IP-адреса на портах, открытых через `--allow-ports`.
+
+```bash
+sudo ./configure-nftables.sh --allow-ports 443 --conn-limit 500
+```
+
+---
+
+### `--disable-anti-scan`
+
+Отключает обнаружение невалидных TCP-флагов и автобан за попытки сканирования портов.
+
+```bash
+sudo ./configure-nftables.sh --disable-anti-scan
+```
+
+---
+
+### `--disable-blocklists`
+
+Отключает загрузку и использование внешних блок-листов ([traffic-guard-lists](https://github.com/shadow-netlab/traffic-guard-lists)).
+
+```bash
+sudo ./configure-nftables.sh --disable-blocklists
+```
+
+---
+
+### `--blocklist-url`
+
+Добавляет собственный URL блок-листа.
+Список должен содержать по одному IP-адресу или подсети в каждой строке.
+
+```bash
+sudo ./configure-nftables.sh --blocklist-url https://example.com/blocklist.txt
+```
+
+---
+
+### `--disable-bogon-filter`
+
+Отключает фильтрацию bogon-адресов на WAN-интерфейсе.
+
+```bash
+sudo ./configure-nftables.sh --disable-bogon-filter
+```
+
+---
+
+### `--wan-iface`
+
+Позволяет вручную указать WAN-интерфейс вместо автоматического определения.
+
+```bash
+sudo ./configure-nftables.sh --wan-iface eth0
+```
+
+---
+
+### `--dry-run`
+
+Генерирует и проверяет ruleset без его применения.
+
+```bash
+sudo ./configure-nftables.sh --dry-run
+```
+
+---
+
+### `-h`, `--help`
+
+Показывает справку по использованию скрипта.
+
+```bash
+sudo ./configure-nftables.sh --help
+```
+
+</details>

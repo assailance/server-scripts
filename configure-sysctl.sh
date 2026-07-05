@@ -76,6 +76,11 @@ success "Зависимости установлены."
 # =======================
 section "Шаг 2/6 – Обнаружение окружения..."
 
+# Определение OpenVZ
+IS_OPENVZ=false
+[[ -f /proc/user_beancounters ]] && IS_OPENVZ=true
+$IS_OPENVZ && info "Обнаружен OpenVZ-контейнер. NIC/RPS-тюнинг будет пропущен (нет доступа к очередям устройства)."
+
 # Определение основного WAN-интерфейса
 WAN_IFACE=""
 WAN_IFACE=$(ip -4 route show default 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="dev") {print $(i+1); exit}}')
@@ -128,6 +133,16 @@ net.ipv6.conf.all.accept_source_route      = 0
 net.ipv6.conf.default.accept_source_route  = 0"
 fi
 
+if $BBR_AVAILABLE; then
+    CC_BLOCK="# congestion control
+net.core.default_qdisc            = fq
+net.ipv4.tcp_congestion_control   = bbr"
+else
+    CC_BLOCK="# congestion control
+net.core.default_qdisc            = fq
+net.ipv4.tcp_congestion_control   = cubic"
+fi
+
 cat > "$SYSCTL_FILE" << 'EOF'
 # сеть
 net.core.netdev_max_backlog       = 65535
@@ -170,10 +185,6 @@ net.ipv4.tcp_wmem                 = 4096 65536 67108864
 
 net.ipv4.tcp_notsent_lowat        = 131072
 net.ipv4.ip_local_port_range      = 10000 65535
-
-# bbr
-net.core.default_qdisc            = fq
-net.ipv4.tcp_congestion_control   = bbr
 
 # udp
 net.ipv4.udp_rmem_min             = 16384
@@ -238,8 +249,8 @@ vm.dirty_background_ratio                  = 5
 vm.max_map_count                           = 262144
 EOF
 
-# запись ipv6-блока
-printf '\n%s\n' "$IPV6_BLOCK" >> "$SYSCTL_FILE"
+# запись ipv6 и congestion control блоков
+printf '\n%s\n\n%s\n' "$IPV6_BLOCK" "$CC_BLOCK" >> "$SYSCTL_FILE"
 
 success "Файл $SYSCTL_FILE записан."
 
@@ -283,7 +294,7 @@ success "Лимиты FD/nproc настроены (shell-сессии приме
 # =======================
 section "Шаг 5/6 – Настройка RPS/RFS/XPS и NIC..."
 
-if [[ -n "$WAN_IFACE" ]]; then
+if [[ -n "$WAN_IFACE" ]] && ! $IS_OPENVZ; then
     # CPU-маска для rps_cpus (все ядра, big-endian hex, группы по 32)
     RPS_MASK=$(python3 -c "
 n = $NCPU
@@ -345,8 +356,12 @@ EOF
     "$RPS_SCRIPT" && success "RPS/RFS/XPS и NIC настроены (${NCPU} ядер, интерфейс ${WAN_IFACE})." \
                   || warn "RPS/RFS/XPS применились с ошибками, проверьте вывод выше."
 else
-    warn "WAN-интерфейс не определён. RPS/RFS/XPS и NIC tuning пропущены."
-    warn "После подключения интерфейса запустите вручную: ${RPS_SCRIPT}"
+    if $IS_OPENVZ; then
+        warn "RPS/RFS/XPS и NIC-тюнинг недоступны в контейнере (OpenVZ), пропуск."
+    else
+        warn "WAN-интерфейс не определён. RPS/RFS/XPS и NIC tuning пропущены."
+        warn "После подключения интерфейса запустите вручную: ${RPS_SCRIPT}"
+    fi
 fi
 
 # выключение transparent huge ages
@@ -379,7 +394,7 @@ fi
 section "Шаг 6/6 – Применение sysctl параметров..."
 
 # применение sysctl (--system применяет все файлы из /etc/sysctl.d/)
-if sysctl --system > /tmp/sysctl-apply.log 2>&1; then
+if sysctl -e --system > /tmp/sysctl-apply.log 2>&1; then
     success "sysctl --system применён успешно."
 else
     warn "sysctl --system завершился с предупреждениями (возможно, часть параметров"

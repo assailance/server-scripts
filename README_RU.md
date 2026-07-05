@@ -14,6 +14,10 @@
 
 Настраивает ruleset для nftables с автоматическим определением SSH-порта, ограничением частоты запросов по IP, автобаном, защитой от сканирования, фильтрацией bogon-адресов и внешними блок-листами. Генерирует файл `/etc/nftables.d/cm_filter.nft`, проверяет его перед применением и настраивает автозагрузку через systemd.
 
+### configure-sysctl.sh / [Перейти](#настройка-sysctl-configure-sysctlsh)
+
+Настраивает параметры ядра Linux (sysctl), лимиты файловых дескрипторов и процессов, производительность сетевого стека, RPS/RFS/XPS, а также оптимизирует сетевой интерфейс и параметры памяти. Автоматически определяет окружение, применяет изменения и настраивает их сохранение после перезагрузки.
+
 <!-- ========================================== -->
 <!-- ====  Docs for configure-iptables.sh  ==== -->
 <!-- ========================================== -->
@@ -211,7 +215,7 @@ sudo ./configure-user.sh <имя_пользователя> <публичный_�
 
 </summary>
 
-Описание выполняемых действий:
+Описание действий:
 
 1. Обновляет и устанавливает пакеты: nftables, curl, ca-certificates, iproute2.
 2. Определяет SSH-порт из текущей конфигурации sshd.
@@ -422,6 +426,74 @@ sudo ./configure-nftables.sh --dry-run
 
 ```bash
 sudo ./configure-nftables.sh --help
+```
+
+</details>
+
+<!-- ======================================== -->
+<!-- ====  Docs for configure-sysctl.sh  ==== -->
+<!-- ======================================== -->
+
+<details>
+<summary>
+
+# Настройка sysctl (configure-sysctl.sh)
+
+</summary>
+
+Описание действий:
+
+1. Обновляет и устанавливает пакеты: ca-certificates, ethtool, iproute2.
+2. Определяет WAN-интерфейс, количество процессорных ядер, доступность модулей tcp_bbr и nf_conntrack.
+3. Генерирует файл `/etc/sysctl.d/99-node.conf` с параметрами производительности, безопасности и сетевого стека.
+4. Настраивает лимиты файловых дескрипторов и процессов через PAM и systemd.
+5. Настраивает RPS/RFS/XPS, параметры сетевого интерфейса и создаёт systemd-сервис для их автоматического применения.
+6. Отключает Transparent Huge Pages (THP) и создаёт systemd-сервис для сохранения настройки после перезагрузки.
+7. Применяет параметры sysctl и выполняет `systemctl daemon-reload`.
+
+## Использование
+
+### Запуск напрямую из GitHub
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-sysctl.sh | sudo bash -s -- [параметры]
+```
+
+Пример запуска с параметрами:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-sysctl.sh \
+| sudo bash -s -- --disable-ipv6
+```
+
+### Загрузка и локальный запуск
+
+```bash
+wget -O configure-sysctl.sh https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-sysctl.sh
+chmod +x configure-sysctl.sh
+sudo ./configure-sysctl.sh [параметры]
+```
+
+---
+
+## Параметры
+
+### `--disable-ipv6`
+
+Полностью отключает IPv6 на уровне ядра.
+
+```bash
+sudo ./configure-sysctl.sh --disable-ipv6
+```
+
+---
+
+### `-h`, `--help`
+
+Показывает справку по использованию скрипта.
+
+```bash
+sudo ./configure-sysctl.sh --help
 ```
 
 </details>

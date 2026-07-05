@@ -14,6 +14,10 @@ Creates a nonroot user, configures SSH key authentication, changes the port and 
 
 Configures an nftables ruleset with automatic SSH detection, per-IP rate limits, autoban mechanisms, anti-scan protection, bogon filtering, and optional blocklists. Generates `/etc/nftables.d/cm_filter.nft`, applies the rules, validates the configuration before activation, and enables automatic loading through systemd.
 
+### configure-sysctl.sh / [Go](#configuring-sysctl-configure-sysctlsh)
+
+Configures Linux kernel (sysctl) parameters, file descriptor and process limits, network stack performance, RPS/RFS/XPS, and optimizes network interface and memory settings. Automatically detects the environment, applies the configuration, and ensures it persists across reboots.
+
 <!-- ========================================== -->
 <!-- ====  Docs for configure-iptables.sh  ==== -->
 <!-- ========================================== -->
@@ -422,6 +426,74 @@ Prints usage information.
 
 ```bash
 sudo ./configure-nftables.sh --help
+```
+
+</details>
+
+<!-- ======================================== -->
+<!-- ====  Docs for configure-sysctl.sh  ==== -->
+<!-- ======================================== -->
+
+<details>
+<summary>
+
+# Configuring sysctl (configure-sysctl.sh)
+
+</summary>
+
+Description of actions:
+
+1. Updates and installs the following packages: ca-certificates, ethtool, iproute2.
+2. Detects the WAN interface, the number of CPU cores, and the availability of the tcp_bbr and nf_conntrack kernel modules.
+3. Generates the `/etc/sysctl.d/99-node.conf` file containing performance, security, and network stack parameters.
+4. Configures file descriptor and process limits through PAM and systemd.
+5. Configures RPS/RFS/XPS, tunes the network interface, and creates a systemd service to apply these settings automatically.
+6. Disables Transparent Huge Pages (THP) and creates a systemd service to keep this setting after reboot.
+7. Applies the sysctl configuration and runs `systemctl daemon-reload`.
+
+## Usage
+
+### Run directly from GitHub
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-sysctl.sh | sudo bash -s -- [options]
+```
+
+Example with arguments:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-sysctl.sh \
+| sudo bash -s -- --disable-ipv6
+```
+
+### Download and run locally
+
+```bash
+wget -O configure-sysctl.sh https://raw.githubusercontent.com/assailance/server-scripts/refs/heads/master/configure-sysctl.sh
+chmod +x configure-sysctl.sh
+sudo ./configure-sysctl.sh [options]
+```
+
+---
+
+## Arguments
+
+### `--disable-ipv6`
+
+Completely disables IPv6 at the kernel level.
+
+```bash
+sudo ./configure-sysctl.sh --disable-ipv6
+```
+
+---
+
+### `-h`, `--help`
+
+Prints usage information.
+
+```bash
+sudo ./configure-sysctl.sh --help
 ```
 
 </details>

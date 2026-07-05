@@ -16,7 +16,7 @@ Configures an nftables ruleset with automatic SSH detection, per-IP rate limits,
 
 ### configure-sysctl.sh / [Go](#configuring-sysctl-configure-sysctlsh)
 
-Configures Linux kernel (sysctl) parameters, file descriptor and process limits, network stack performance, RPS/RFS/XPS, and optimizes network interface and memory settings. Automatically detects the environment, applies the configuration, and ensures it persists across reboots.
+Configures Linux kernel (sysctl) parameters, file descriptor and process limits, network stack performance, RPS/RFS/XPS, and optimizes network interface and memory settings. Automatically detects the environment (including OpenVZ), applies the configuration, and ensures it persists across reboots.
 
 <!-- ========================================== -->
 <!-- ====  Docs for configure-iptables.sh  ==== -->
@@ -444,10 +444,10 @@ sudo ./configure-nftables.sh --help
 Description of actions:
 
 1. Updates and installs the following packages: ca-certificates, ethtool, iproute2.
-2. Detects the WAN interface, the number of CPU cores, and the availability of the tcp_bbr and nf_conntrack kernel modules.
+2. Detects the environment type, WAN interface, the number of CPU cores, and the availability of the tcp_bbr and nf_conntrack kernel modules.
 3. Generates the `/etc/sysctl.d/99-node.conf` file containing performance, security, and network stack parameters.
 4. Configures file descriptor and process limits through PAM and systemd.
-5. Configures RPS/RFS/XPS, tunes the network interface, and creates a systemd service to apply these settings automatically.
+5. Configures RPS/RFS/XPS, tunes the network interface, and creates a systemd service to apply these settings automatically (skipped on OpenVZ).
 6. Disables Transparent Huge Pages (THP) and creates a systemd service to keep this setting after reboot.
 7. Applies the sysctl configuration and runs `systemctl daemon-reload`.
 

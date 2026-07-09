@@ -43,26 +43,24 @@ UDP_PROTECTION=true
 UDP_RATE=1000
 UDP_BURST=2000
 
-# 0 – выключен, per-IP лимит ОДНОВРЕМЕННЫХ соединений
-CONN_LIMIT=0
-
 # Параметры анти-скан
 ANTI_SCAN=true
 PORTSCAN_RATE=20
 PORTSCAN_BURST=40
 PORTSCAN_BAN_TIME="1h"
 
-# Блок-листы
-ENABLE_BLOCKLISTS=true
-EXTRA_BLOCKLIST_URLS=()
-
-# Bogon-фильтр
-BOGON_FILTER=true
-WAN_IFACE_OVERRIDE=""
-
 # ICMP rate-limit
 ICMP_RATE=20
 ICMP_BURST=40
+
+# лимит ОДНОВРЕМЕННЫХ соединений (0 – выключен)
+CONN_LIMIT=0
+
+ENABLE_BLOCKLISTS=true
+EXTRA_BLOCKLIST_URLS=()
+
+BOGON_FILTER=true
+WAN_IFACE_OVERRIDE=""
 
 DRY_RUN=false
 
@@ -208,7 +206,7 @@ while [[ $# -gt 0 ]]; do
             [[ -z "${2-}" ]] && die "--allow-port-from требует список вида IP:PORT через запятую."
             IFS=',' read -ra ALLOW_FROM <<< "$2"; shift 2 ;;
         
-				# tuning
+		# tuning
         --ssh-rate)          SSH_RATE="${2-}"; shift 2 ;;
         --ssh-burst)         SSH_BURST="${2-}"; shift 2 ;;
         --ssh-ban-time)      SSH_BAN_TIME="${2-}"; shift 2 ;;
@@ -227,7 +225,7 @@ while [[ $# -gt 0 ]]; do
             EXTRA_BLOCKLIST_URLS+=("$2"); shift 2 ;;
         --wan-iface)         WAN_IFACE_OVERRIDE="${2-}"; shift 2 ;;
 
-				# other
+		# other
         --dry-run)           DRY_RUN=true; shift ;;
         -h|--help)           help ;;
         *) die "Неизвестный аргумент: $1. Используйте --help." ;;
@@ -281,6 +279,17 @@ success "Пакеты установлены."
 # [2/8] Обнаружение окружения
 # ===========================
 section "Шаг 2/8 – Обнаружение окружения..."
+
+IS_OPENVZ=false
+if [[ -f /proc/user_beancounters ]]; then
+    IS_OPENVZ=true
+    SSH_PROTECTION=false
+    SYN_PROTECTION=false
+    UDP_PROTECTION=false
+    ANTI_SCAN=false
+    CONN_LIMIT=0
+    warn "Обнаружен OpenVZ. Расширенные функции nftables будут отключены."
+fi
 
 SSH_PORT=$(sshd -T 2>/dev/null | awk '/^port / {print $2; exit}' || true)
 SSH_PORT=${SSH_PORT:-22}
@@ -349,6 +358,18 @@ fi
 # =======================
 section "Шаг 4/8 – Генерация ruleset для nftables..."
 
+CONNTRACK_RULES=""
+if $IS_OPENVZ; then
+    CONNTRACK_RULES="
+        # пропуск всех TCP-пакетов, кроме новых SYN (OpenVZ)
+        tcp flags & (syn|ack) != syn accept
+        udp sport 53 accept"
+else
+    CONNTRACK_RULES="
+        ct state established,related accept
+        ct state invalid drop"
+fi
+
 # Наборы (sets)
 AUTOBAN_SETS="
     # автобаны (SSH bruteforce, portscan)
@@ -393,7 +414,7 @@ if $BOGON_FILTER; then
         iifname \"${WAN_IFACE}\" ip6 saddr @bogon_v6 drop"
 fi
 
-# IPv6: disable-блок (если --disable-ipv6)
+# IPv6 (--disable-ipv6)
 IPV6_DISABLE_INPUT=""
 IPV6_DISABLE_FORWARD=""
 IPV6_DISABLE_OUTPUT=""
@@ -445,6 +466,7 @@ if $SSH_PROTECTION; then
         tcp dport ${SSH_PORT} ct state new meta nfproto ipv6 add @autoban_v6 { ip6 saddr timeout ${SSH_BAN_TIME} } drop"
 else
     SSH_RULES="
+        # порт SSH
         tcp dport ${SSH_PORT} accept"
 fi
 
@@ -474,7 +496,7 @@ if [[ ${#ALLOW_FROM[@]} -gt 0 ]]; then
     done
 fi
 
-# TCP extra ports (--allow-ports)
+# TCP ports (--allow-ports)
 TCP_RULES=""
 if [[ ${#TCP_EXTRA_PORTS[@]} -gt 0 ]]; then
     declare -A _seen_tcp=()
@@ -490,7 +512,7 @@ if [[ ${#TCP_EXTRA_PORTS[@]} -gt 0 ]]; then
         [[ -z "$TCP_RULES" ]] && TCP_RULES="
         # сервисные TCP-порты"
 
-				_comment_parts=()
+        _comment_parts=()
         (( CONN_LIMIT > 0 )) && _comment_parts+=("лимит соединений (${CONN_LIMIT})")
         $SYN_PROTECTION && _comment_parts+=("per-IP SYN-rate-limit (${SYN_RATE}/s)")
         if [[ ${#_comment_parts[@]} -gt 0 ]]; then
@@ -519,7 +541,7 @@ if [[ ${#TCP_EXTRA_PORTS[@]} -gt 0 ]]; then
     unset _seen_tcp
 fi
 
-# UDP extra ports (--allow-udp-ports)
+# UDP ports (--allow-udp-ports)
 UDP_RULES=""
 if [[ ${#UDP_EXTRA_PORTS[@]} -gt 0 ]]; then
     declare -A _seen_udp=()
@@ -557,7 +579,7 @@ if [[ ${#UDP_EXTRA_PORTS[@]} -gt 0 ]]; then
     unset _seen_udp
 fi
 
-# Анти-скан: невалидные флаги + portscan = автобан
+# Анти-скан (невалидные флаги + portscan = автобан)
 SCAN_CHAIN=""
 FLAGDROP_RULES=""
 PORTSCAN_RULES=""
@@ -609,8 +631,7 @@ ${SCAN_CHAIN}
         iifname "lo" accept
 ${IPV6_DISABLE_INPUT}
 
-        ct state established,related accept
-        ct state invalid drop
+${CONNTRACK_RULES}
 
         # уже забаненные (SSH bruteforce / portscan)
         ip  saddr @autoban_v4 drop
@@ -629,7 +650,7 @@ ${PORTSCAN_RULES}
     }
 
     chain forward {
-        # accept по умолчанию, чтобы не перебивать FORWARD-цепочки Docker/др. таблиц.
+        # accept по умолчанию, чтобы не перебивать FORWARD-цепочки Docker/др. таблиц
         type filter hook forward priority filter; policy accept;
 ${IPV6_DISABLE_FORWARD}
     }

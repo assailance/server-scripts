@@ -218,13 +218,14 @@ sudo ./configure-user.sh <username> <public_key> 8132
 Description of actions:
 
 1. Update and install the following packages: nftables, curl, ca-certificates, iproute2.
-2. Detect the SSH port from the current sshd configuration.
-3. Detect the WAN interface (used by the bogon filter).
-4. Download and configure blocklists from the [traffic-guard-lists](https://github.com/shadow-netlab/traffic-guard-lists) repository (unless disabled).
-5. Generate an nftables ruleset based on the passed parameters (see below).
-6. Validate the generated ruleset using `nft -c`.
-7. Apply the generated ruleset.
-8. Configure automatic loading through systemd (`cm-filter.service`).
+2. Detect OpenVZ, the SSH port from the sshd configuration and the WAN interface (used by the bogon filter).
+3. Download and configure blocklists from the [traffic-guard-lists](https://github.com/shadow-netlab/traffic-guard-lists) repository (unless disabled).
+4. Generate an nftables ruleset based on the passed parameters (see below).
+5. Validate the generated ruleset using `nft -c`.
+6. Apply the generated ruleset.
+7. Configure automatic loading through systemd (`cm-filter.service`).
+
+> ℹ️ When OpenVZ is detected, the script automatically disables features that require conntrack support or other advanced netfilter capabilities: SSH_PROTECTION, SYN_PROTECTION, UDP_PROTECTION, ANTI_SCAN, and CONN_LIMIT.
 
 ## Usage
 
